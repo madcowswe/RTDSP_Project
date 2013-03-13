@@ -9,6 +9,7 @@
 \usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
 \usepackage{float}
 \usepackage{mathtools}
+\usepackage{microtype}
 
 %%% Examples of Article customizations
 % These packages are optional, depending whether you want the features they provide.
@@ -93,12 +94,12 @@
 
 \begin{document}
 \maketitle
-\center{\textbf{\large{\emph{...a profound trust in the advancement of science.}	}}}
+\center{\textbf{\large{\emph{"...a profound trust in the advancement of science."}	}}}
+
 \abstract{
 Talk about the high level conclusions of the project including the fact our stuff is super quick and any numeric metrics that show noise reduction. }
 \tableofcontents
 \clearpage
-\begin{raggedright}
 
 
 
@@ -111,7 +112,7 @@ In this project we aim to produce a real time filtering algorithm that will remo
 In this implementation we track the noise in the sample by taking the minimum amplitude of each bin of FFT. We continually update this during a 2.5s period, after this we save this into an array for future reference, and be start on a new period of 2.5s. We hold 4 examples of the noise floor (including the current one). For each bin we select the minimum value from each of these examples to make the current noise floor, then we subtract the spectrum from the input spectrum. After each 2.5 second period we shift the noise floor examples along, deleting the last one to maintain exactly 4 examples of the noise floor. The code that achieves this can be seen in Appendix~\ref{app:simple}. This implementation has two tuning parameters, Alpha and Lambda. Alpha controls the amplification factor that is applied to the model noise floor before subtraction, very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
 Lambda is the value setting the minimum value that the noise floor is allowed to take, as on a occasion the noise floor could be considered negative (and hence we would actually add more noise upon subtraction), this should be kept low, in fact we found that a value of 0 works the best, this just ensures that the noise floor cannot be considered negative though all positive values will pass through unchanged.  
 
-\section{Enhancement: Low pass filtering $\lvert X(\omega) \rvert $} 
+\section{Low pass filtering $\lvert X(\omega) \rvert $} 
 \label{sec:IIRamp}
 \begin{figure}[htbp]
 	\begin{center}
@@ -143,7 +144,7 @@ for (k = 0; k < FFTLEN; ++k)
 This enhancement tries to combat the inaccuracies of taking the minimum value of each bin to represent the noise floor. This problem manifests because often the minimum for each bin is not representative of the actual noise floor, hence the need for large alpha values at times. By using a low pass filter, one off low values in a particular bin are given less influence on the current noise floor model, and they will need to remain low for a number of windows to suggest that that particular bin is indeed required to be lower to be representative of the noise floor. This filtering is applied directly to the FFT of the input and there for the current method of finding the minimum value for each bin can be maintained. The low pass filtering code segment is shown in Figure~\ref{code:LPFxOMG}.  Line number \verb"5" performs the IIR filter within the for loop that is incrementing \verb"k", the loop is also performing other operations not relevant to the IIR filtering. 
 
 The effect of this enhancement is very noticeable, the words are less corrupted by the subtraction of the noise, due the fact that our estimation of the noise is much more representative of the actual noise floor.   
-\section{Enhancement: Using Spectral Power Rather Than Spectral Amplitude} 
+\section{Filtering Using Spectral Power} 
 \subsection{Low pass filtering $\lvert X(\omega) \rvert^{2} $} 
 
 This enhancement is very similar to that presented in Section~\ref{sec:IIRamp} though instead of using the amplitude, then IIR filtering it, we IIR filter the power spectrum instead, this is a benefit as it makes a larger difference between quieter background noise, and the louder signal we are trying to extract. This should enhance our ability to extract the noise floor. 
@@ -161,7 +162,7 @@ This enhancement generates $g(\omega)$ using the ration of power rather than of 
 
 This aided the performance of our system, though once again the affect was marginal. The strange sounds that were present in the low frequencies (especially in the car sample) where somewhat reduced, though the actual clarity of the speech was not affected greatly.
 
-\section{Enhancement:Zeroing Bins That Fall Bellow Threshold SNR} 
+\section{Zeroing Bins That Fall Bellow Threshold SNR} 
 
 In this enhancement we wished to remove the small chirping noises that are left over in from the previous enhancements. Generally the chirping is much quieter that the speech after the techniques discussed previously, so we implemented a simple routine that drives bins that have insufficient amplitude, which has been defined by a threshold. 
 
@@ -170,13 +171,11 @@ This has the effect of making the sections with no speech completely silent, so 
 A further improvement to this enhancement was to weight the threshold by the low pass filtered noise power (over all frequencies), such that when there is a large amount of noise the cut will be less aggressive. This is needed because when the noise is loud it is comparable to the signal, so if we cut just above the noise floor, we also cut some of the signal, this makes the speech harder to understand. It is in-fact better to leave a little bit of noise in this situation. When the noise power is low we can assume that the signal will dominate over the noise, and any bins that fall close to the noise floor can be removed without affecting the voice quality.  
 
 
+\clearpage
 
-
-\end{raggedright}
-
-\section{APPENDIX} 
-\appendix
-\section{Simple Implementation} 
+\section{APPENDIX}
+\renewcommand{\thesubsection}{\Alph{subsection}}
+\subsection{Simple Implementation} 
 \label{app:simple}
 
 This is the standard implementation as described in Section~\ref{sec:simple}. No special modifications have been made. 
@@ -266,6 +265,17 @@ fft(FFTLEN, procframe);
     \end{lstlisting}
   \end{center}
 
+\subsection{Notes} % (fold)
+\label{sec:notes}
+\begin{itemize}
+	\item We tried matlab, and we did slightly better (in our opinion, elaborate!)
+	\item Try to find some sort of research paper based method, becase of research paperness
+	\item Nonlinear clipping: inspiration = skype: see if skype has some papers on it?
+	\item Do voice vs not voice spectral regions/singature and shape a filter for voice frequencies.
+	\item If time > something large: do eigenvoices (perhaps talk about them anyway)
+	\item 
 
+\end{itemize}
+% section notes (end)
 
 \end{document}
