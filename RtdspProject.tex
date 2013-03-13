@@ -111,7 +111,8 @@ In this project we aim to produce a real time filtering algorithm that will remo
 In this implementation we track the noise in the sample by taking the minimum amplitude of each bin of FFT. We continually update this during a 2.5s period, after this we save this into an array for future reference, and be start on a new period of 2.5s. We hold 4 examples of the noise floor (including the current one). For each bin we select the minimum value from each of these examples to make the current noise floor, then we subtract the spectrum from the input spectrum. After each 2.5 second period we shift the noise floor examples along, deleting the last one to maintain exactly 4 examples of the noise floor. The code that achieves this can be seen in Appendix~\ref{app:simple}. This implementation has two tuning parameters, Alpha and Lambda. Alpha controls the amplification factor that is applied to the model noise floor before subtraction, very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
 Lambda is the value setting the minimum value that the noise floor is allowed to take, as on a occasion the noise floor could be considered negative (and hence we would actually add more noise upon subtraction), this should be kept low, in fact we found that a value of 0 works the best, this just ensures that the noise floor cannot be considered negative though all positive values will pass through unchanged.  
 
-\section{Enhancement 1: Low pass filtering $\lvert X(\omega) \rvert $} 
+\section{Enhancement: Low pass filtering $\lvert X(\omega) \rvert $} 
+\label{sec:IIRamp}
 \begin{figure}[htbp]
 	\begin{center}
     \begin{lstlisting}[language = C]
@@ -139,9 +140,26 @@ for (k = 0; k < FFTLEN; ++k)
 	\label{code:LPFxOMG}
 \end{figure}
 
-This enhancement tries to combat the inaccuracies of taking the minimum value of each bin to represent the noise floor. This problem manifests because often the minimum for each bin is not representative of the actual noise floor, hence the need for large alpha values at times. By using a low pass filter, one off low values in a particular bin are given less influence on the current noise floor model, and they will need to remain low for a number of windows to suggest that that particular bin is indeed required to be lower to be representative of the noise floor. This filtering is applied directly to the FFT of the input and there for the current method of finding the minimum value for each bin can be maintained. The low pass filtering code segment is shown in Figure~\ref{code:LPFxOMG}.  Line number \verb"5" performs the FIR filter within the for loop that is incrementing \verb"k", the loop is also performing other operations not relevant to the FIR filtering. 
+This enhancement tries to combat the inaccuracies of taking the minimum value of each bin to represent the noise floor. This problem manifests because often the minimum for each bin is not representative of the actual noise floor, hence the need for large alpha values at times. By using a low pass filter, one off low values in a particular bin are given less influence on the current noise floor model, and they will need to remain low for a number of windows to suggest that that particular bin is indeed required to be lower to be representative of the noise floor. This filtering is applied directly to the FFT of the input and there for the current method of finding the minimum value for each bin can be maintained. The low pass filtering code segment is shown in Figure~\ref{code:LPFxOMG}.  Line number \verb"5" performs the IIR filter within the for loop that is incrementing \verb"k", the loop is also performing other operations not relevant to the IIR filtering. 
 
 The effect of this enhancement is very noticeable, the words are less corrupted by the subtraction of the noise, due the fact that our estimation of the noise is much more representative of the actual noise floor.   
+\section{Enhancement: Using Spectral Power Rather Than Spectral Amplitude} 
+\subsection{Low pass filtering $\lvert X(\omega) \rvert^{2} $} 
+
+This enhancement is very similar to that presented in Section~\ref{sec:IIRamp} though instead of using the amplitude, then IIR filtering it, we IIR filter the power spectrum instead, this is a benefit as it makes a larger difference between quieter background noise, and the louder signal we are trying to extract. This should enhance our ability to extract the noise floor. 
+
+In reality this enhancement added little to the sound quality of the output, bordering on inaudible changes. Though the method of filtering in the power domain will be used to great effect later in the string of enhancements.  
+
+\subsection{Generating $g(\omega)$ Using Ratios of Power} 
+
+\begin{equation}
+\label{equ:powerRat}
+	g(\omega) = \max\left(\lambda, \sqrt{1- \frac{\lvert N(\omega) \rvert ^{2}}{\lvert X(\omega) \rvert ^{2}}}\right)
+\end{equation}
+
+This enhancement generates $g(\omega)$ using the ration of power rather than of amplitude(Equation~\ref{equ:powerRat}), where $g(\omega)$ is the current filter that is to be applied to the input. This has makes the $g(\omega)$ emphasise sounds with larger amplitude much more than those with small amplitude, if we assume that the signal amplitude is always significantly more than that of the noise, then this helps the selectivity of the filter quite significantly. 
+
+This aided the performance of our system, though once again the affect was marginal. The strange sounds that were present in the low frequencies (especially in the car sample) where somewhat reduced, though the actual clarity of the speech was not affected greatly.
 
 
 
