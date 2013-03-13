@@ -61,8 +61,8 @@
 #define TMrotate 2.5
 #define MrotateFramecount ((int)(TMrotate/TFRAME))
 
-#define ALPHA 20
-#define LAMBDA 0.05
+#define ALPHA 3
+#define LAMBDA 0.00
 #define TauOP1 0.04
 
 float alpha = ALPHA;
@@ -107,7 +107,7 @@ DSK6713_AIC23_CodecHandle H_Codec;
 float *inbuffer, *outbuffer;   		/* Input/output circular buffers */
 //float *inframe, *outframe;          /* Input and output frames */
 float *inwin, *outwin;              /* Input and output windows */
-float* ampbinstate;
+float* powbinstate;
 complex* procframe;
 float ingain, outgain;				/* ADC and DAC gains */ 
 float cpufrac; 						/* Fraction of CPU time used */
@@ -134,7 +134,7 @@ void main()
 	//inframe		= (float *) calloc(FFTLEN, sizeof(float));	/* Array for processing*/
     //outframe	= (float *) calloc(FFTLEN, sizeof(float));	/* Array for processing*/
     //int(*Mbuff)[FFTLEN] = malloc((sizeof *Mbuff) * NumMbuff);
-    ampbinstate	= (float *) calloc(FFTLEN, sizeof(float));
+    powbinstate	= (float *) calloc(FFTLEN, sizeof(float));
     procframe	= (complex *) calloc(FFTLEN, sizeof(complex));
     inwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Input window */
     outwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Output window */
@@ -263,13 +263,14 @@ void process_frame(void)
 
 	for (k = 0; k < FFTLEN; ++k)
 	{
-		float curramp = cabs(procframe[k]); 
+		float curramp = cabs(procframe[k]);
+		float currpow = curramp * curramp;
 
-		//LPF curramp
-		curramp = (1-kop1)*curramp + kop1*ampbinstate[k];
-		ampbinstate[k] = curramp;
+		//LPF currpow
+		currpow = (1-kop1)*currpow + kop1*powbinstate[k];
+		powbinstate[k] = currpow;
 
-		float currnoisebin = clearM ? curramp : min(Mbuffs[0][k], curramp);
+		float currnoisebin = clearM ? sqrt(currpow) : min(Mbuffs[0][k], sqrt(currpow));
 		Mbuffs[0][k] = currnoisebin;
 
 		for (i = 1; i < NumMbuff; ++i)
