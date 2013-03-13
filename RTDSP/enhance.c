@@ -68,7 +68,7 @@
 float alpha = ALPHA;
 float lambda = LAMBDA;
 float kop1 = 0.85; //init in init = exp(-TFRAME/TauOP1);
-float nonlinclip = 0.1;
+float nonlinclip = 0.05;
 
 
 #define max(a,b) \
