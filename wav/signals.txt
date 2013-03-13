@@ -1,0 +1,17 @@
+Speech files for testing noise cancellation
+
+clean.wav	A 40-second passage concerning sailors. All other files
+		have noise added to this passage. The final digit of the
+		file names indicates the noise amplitude.
+
+car1.wav	Car noise
+
+factory1.wav	Factory Noise at two sound levels
+factory2.wav
+
+lynx1.wav	A lynx helicopter
+lynx2.wav
+
+phantom1.wav	An F15 fighter aircraft
+phantom2.wav
+phantom4.wav
