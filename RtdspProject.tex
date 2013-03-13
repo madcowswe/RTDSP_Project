@@ -161,6 +161,15 @@ This enhancement generates $g(\omega)$ using the ration of power rather than of 
 
 This aided the performance of our system, though once again the affect was marginal. The strange sounds that were present in the low frequencies (especially in the car sample) where somewhat reduced, though the actual clarity of the speech was not affected greatly.
 
+\section{Enhancement:Zeroing Bins That Fall Bellow Threshold SNR} 
+
+In this enhancement we wished to remove the small chirping noises that are left over in from the previous enhancements. Generally the chirping is much quieter that the speech after the techniques discussed previously, so we implemented a simple routine that drives bins that have insufficient amplitude, which has been defined by a threshold. 
+
+This has the effect of making the sections with no speech completely silent, so long as there is no musical noise. This is because after previous filtering, all bins fall below our threshold and can be removed completely. Musical noise still gets through this filter in general as it has not been suppressed sufficiently from the previous stages of enhancement. Furthermore, noise that is present during speech is not affected much, as the large amplitude signal adds to the noise and as such the noise can be carried through the threshold check. 
+
+A further improvement to this enhancement was to weight the threshold by the low pass filtered noise power (over all frequencies), such that when there is a large amount of noise the cut will be less aggressive. This is needed because when the noise is loud it is comparable to the signal, so if we cut just above the noise floor, we also cut some of the signal, this makes the speech harder to understand. It is in-fact better to leave a little bit of noise in this situation. When the noise power is low we can assume that the signal will dominate over the noise, and any bins that fall close to the noise floor can be removed without affecting the voice quality.  
+
+
 
 
 \end{raggedright}
