@@ -61,13 +61,14 @@
 #define TMrotate 2.5
 #define MrotateFramecount ((int)(TMrotate/TFRAME))
 
-#define ALPHA 7
+#define ALPHA 5
 #define LAMBDA 0.00
 #define TauOP1 0.04
 
 float alpha = ALPHA;
 float lambda = LAMBDA;
 float kop1 = 0.85; //init in init = exp(-TFRAME/TauOP1);
+float nonlinclip = 0.5;
 
 
 #define max(a,b) \
@@ -280,7 +281,8 @@ void process_frame(void)
 
 		currnoisebin *= alpha;
 
-		float g = max(lambda, 1-sqrt(currnoisebin/(curramp*curramp)));
+		float powratio = currnoisebin/(curramp*curramp);
+		float g = (powratio > nonlinclip) ? 0 : max(lambda, 1-sqrt(powratio));
 		procframe[k] = rmul(g, procframe[k]);
 	}
 
