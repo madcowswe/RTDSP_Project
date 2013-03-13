@@ -75,7 +75,7 @@
   showstringspaces=false,
   columns=flexible,
   basicstyle={\small\ttfamily},
-  numbers=none,
+  numbers=left,
   numberstyle=\tiny\color{gray},
   keywordstyle=\color{mauve},
   commentstyle=\color{dkgreen},
@@ -98,6 +98,7 @@
 Talk about the high level conclusions of the project including the fact our stuff is super quick and any numeric metrics that show noise reduction. }
 \tableofcontents
 \clearpage
+\begin{raggedright}
 
 
 
@@ -110,7 +111,68 @@ In this project we aim to produce a real time filtering algorithm that will remo
 In this implementation we track the noise in the sample by taking the minimum amplitude of each bin of FFT. We continually update this during a 2.5s period, after this we save this into an array for future reference, and be start on a new period of 2.5s. We hold 4 examples of the noise floor (including the current one). For each bin we select the minimum value from each of these examples to make the current noise floor, then we subtract the spectrum from the input spectrum. After each 2.5 second period we shift the noise floor examples along, deleting the last one to maintain exactly 4 examples of the noise floor. The code that achieves this can be seen in Appendix~\ref{app:simple}. This implementation has two tuning parameters, Alpha and Lambda. Alpha controls the amplification factor that is applied to the model noise floor before subtraction, very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
 Lambda is the value setting the minimum value that the noise floor is allowed to take, as on a occasion the noise floor could be considered negative (and hence we would actually add more noise upon subtraction), this should be kept low, in fact we found that a value of 0 works the best, this just ensures that the noise floor cannot be considered negative though all positive values will pass through unchanged.  
 
-\section{Enhancement 1: Low pass filtering $\lvert X(\omega) \rvert $} 
+\section{Enhancement: Low pass filtering $\lvert X(\omega) \rvert $} 
+\label{sec:IIRamp}
+\begin{figure}[htbp]
+	\begin{center}
+    \begin{lstlisting}[language = C]
+for (k = 0; k < FFTLEN; ++k)
+	{
+		float curramp = cabs(procframe[k]); 
+
+		curramp = (1-kop1)*curramp + kop1*ampbinstate[k];
+		ampbinstate[k] = curramp;
+
+		float currnoisebin = clearM ? curramp : min(Mbuffs[0][k], curramp);
+		Mbuffs[0][k] = currnoisebin;
+
+		for (i = 1; i < NumMbuff; ++i)
+			currnoisebin = min(currnoisebin, Mbuffs[i][k]);
+
+		currnoisebin *= alpha;
+
+		float g = max(lambda, 1-(currnoisebin/curramp));
+		procframe[k] = rmul(g, procframe[k]);
+	}
+    \end{lstlisting}
+  \end{center}
+	\caption{Code segment showing the implementation of low pass filtering the FFT of the input}
+	\label{code:LPFxOMG}
+\end{figure}
+
+This enhancement tries to combat the inaccuracies of taking the minimum value of each bin to represent the noise floor. This problem manifests because often the minimum for each bin is not representative of the actual noise floor, hence the need for large alpha values at times. By using a low pass filter, one off low values in a particular bin are given less influence on the current noise floor model, and they will need to remain low for a number of windows to suggest that that particular bin is indeed required to be lower to be representative of the noise floor. This filtering is applied directly to the FFT of the input and there for the current method of finding the minimum value for each bin can be maintained. The low pass filtering code segment is shown in Figure~\ref{code:LPFxOMG}.  Line number \verb"5" performs the IIR filter within the for loop that is incrementing \verb"k", the loop is also performing other operations not relevant to the IIR filtering. 
+
+The effect of this enhancement is very noticeable, the words are less corrupted by the subtraction of the noise, due the fact that our estimation of the noise is much more representative of the actual noise floor.   
+\section{Enhancement: Using Spectral Power Rather Than Spectral Amplitude} 
+\subsection{Low pass filtering $\lvert X(\omega) \rvert^{2} $} 
+
+This enhancement is very similar to that presented in Section~\ref{sec:IIRamp} though instead of using the amplitude, then IIR filtering it, we IIR filter the power spectrum instead, this is a benefit as it makes a larger difference between quieter background noise, and the louder signal we are trying to extract. This should enhance our ability to extract the noise floor. 
+
+In reality this enhancement added little to the sound quality of the output, bordering on inaudible changes. Though the method of filtering in the power domain will be used to great effect later in the string of enhancements.  
+
+\subsection{Generating $g(\omega)$ Using Ratios of Power} 
+
+\begin{equation}
+\label{equ:powerRat}
+	g(\omega) = \max\left(\lambda, \sqrt{1- \frac{\lvert N(\omega) \rvert ^{2}}{\lvert X(\omega) \rvert ^{2}}}\right)
+\end{equation}
+
+This enhancement generates $g(\omega)$ using the ration of power rather than of amplitude(Equation~\ref{equ:powerRat}), where $g(\omega)$ is the current filter that is to be applied to the input. This has makes the $g(\omega)$ emphasise sounds with larger amplitude much more than those with small amplitude, if we assume that the signal amplitude is always significantly more than that of the noise, then this helps the selectivity of the filter quite significantly. 
+
+This aided the performance of our system, though once again the affect was marginal. The strange sounds that were present in the low frequencies (especially in the car sample) where somewhat reduced, though the actual clarity of the speech was not affected greatly.
+
+\section{Enhancement:Zeroing Bins That Fall Bellow Threshold SNR} 
+
+In this enhancement we wished to remove the small chirping noises that are left over in from the previous enhancements. Generally the chirping is much quieter that the speech after the techniques discussed previously, so we implemented a simple routine that drives bins that have insufficient amplitude, which has been defined by a threshold. 
+
+This has the effect of making the sections with no speech completely silent, so long as there is no musical noise. This is because after previous filtering, all bins fall below our threshold and can be removed completely. Musical noise still gets through this filter in general as it has not been suppressed sufficiently from the previous stages of enhancement. Furthermore, noise that is present during speech is not affected much, as the large amplitude signal adds to the noise and as such the noise can be carried through the threshold check. 
+
+A further improvement to this enhancement was to weight the threshold by the low pass filtered noise power (over all frequencies), such that when there is a large amount of noise the cut will be less aggressive. This is needed because when the noise is loud it is comparable to the signal, so if we cut just above the noise floor, we also cut some of the signal, this makes the speech harder to understand. It is in-fact better to leave a little bit of noise in this situation. When the noise power is low we can assume that the signal will dominate over the noise, and any bins that fall close to the noise floor can be removed without affecting the voice quality.  
+
+
+
+
+\end{raggedright}
 
 \section{APPENDIX} 
 \appendix
