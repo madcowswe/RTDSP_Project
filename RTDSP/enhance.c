@@ -61,7 +61,7 @@
 #define TMrotate 2.5
 #define MrotateFramecount ((int)(TMrotate/TFRAME))
 
-#define ALPHA 3
+#define ALPHA 7
 #define LAMBDA 0.00
 #define TauOP1 0.04
 
@@ -109,7 +109,7 @@ float *inbuffer, *outbuffer;   		/* Input/output circular buffers */
 float *inwin, *outwin;              /* Input and output windows */
 float* powbinstate;
 complex* procframe;
-float ingain, outgain;				/* ADC and DAC gains */ 
+float ingain, outgain;				/* ADC and DAC gains */
 float cpufrac; 						/* Fraction of CPU time used */
 float* Mbuffs[NumMbuff];
 volatile int io_ptr=0;              /* Input/ouput pointer for circular buffers */
@@ -138,6 +138,8 @@ void main()
     procframe	= (complex *) calloc(FFTLEN, sizeof(complex));
     inwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Input window */
     outwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Output window */
+    
+    
 
     for (i = 0; i < NumMbuff; ++i)
     {
@@ -270,7 +272,7 @@ void process_frame(void)
 		currpow = (1-kop1)*currpow + kop1*powbinstate[k];
 		powbinstate[k] = currpow;
 
-		float currnoisebin = clearM ? sqrt(currpow) : min(Mbuffs[0][k], sqrt(currpow));
+		float currnoisebin = clearM ? currpow : min(Mbuffs[0][k], currpow);
 		Mbuffs[0][k] = currnoisebin;
 
 		for (i = 1; i < NumMbuff; ++i)
@@ -278,7 +280,7 @@ void process_frame(void)
 
 		currnoisebin *= alpha;
 
-		float g = max(lambda, 1-(currnoisebin/curramp));
+		float g = max(lambda, 1-sqrt(currnoisebin/(curramp*curramp)));
 		procframe[k] = rmul(g, procframe[k]);
 	}
 
