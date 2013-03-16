@@ -113,6 +113,7 @@ complex* procframe;
 complex* procframeprepipe;
 float ingain, outgain;				/* ADC and DAC gains */
 float cpufrac; 						/* Fraction of CPU time used */
+float* powratiobuffs[3];
 float* Mbuffs[NumMbuff];
 volatile int io_ptr=0;              /* Input/ouput pointer for circular buffers */
 volatile int frame_ptr=0;           /* Frame pointer */
@@ -142,7 +143,10 @@ void main()
     inwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Input window */
     outwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Output window */
     
-    
+    for (i = 0; i < 3; ++i)
+    {
+    	powratiobuffs[i] = (float *) calloc(FFTLEN, sizeof(float));
+    }
 
     for (i = 0; i < NumMbuff; ++i)
     {
@@ -265,6 +269,9 @@ void process_frame(void)
 		clearM = 0;
 	}
 
+	powratiobuffs[2] = powratiobuffs[1];
+	powratiobuffs[1] = powratiobuffs[0];
+
 	static float lastallbinpower = 0;
 	float allbinpower = lastallbinpower;
 	lastallbinpower = 0;
@@ -288,14 +295,23 @@ void process_frame(void)
 		
 		lastallbinpower += currnoisebin;
 		
-		float powratio = currnoisebin/(curramp*curramp);
-		float g = (powratio > (nonlinclip * (allbinpower/**allbinpower*/))) ? 0 : max(lambda, 1-sqrt(powratio));
-		procframe[k] = rmul(g, procframe[k]);
+		powratiobuffs[0][k] = currnoisebin/(curramp*curramp);
+		//float g = (powratio > (nonlinclip * (allbinpower/**allbinpower*/))) ? 0 : max(lambda, 1-sqrt(powratio));
+		//procframe[k] = rmul(g, procframe[k]);
 	}
 
-	//complex* tempframe = procframeprepipe;
-	//procframeprepipe = procframe;
- 	//procframe = tempframe;
+	//swap new and old
+	complex* tempframe = procframeprepipe;
+	procframeprepipe = procframe;
+ 	procframe = tempframe;
+
+ 	for (k = 0; k < FFTLEN; ++k)
+ 	{
+ 		float powratiomin = max(max(powratiobuffs[0][k], powratiobuffs[1][k]), powratiobuffs[2][k]); //NSR!!!
+
+ 		float g = (powratiomin > (nonlinclip * allbinpower)) ? 0 : max(lambda, 1-sqrt(powratiobuffs[1][k]));
+ 		procframe[k] = rmul(g, procframe[k]);
+ 	}
  	
 	ifft(FFTLEN, procframe);
 	
