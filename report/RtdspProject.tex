@@ -112,14 +112,13 @@ The basic form for all these filters will be to find the background noise signat
 \label{sec:simple}
 In this implementation we track the noise floor in the sample by finding the minimum amplitude of each bin of an FFT. We continually update this estimate during a 2.5s period, after which we save it into an array for future reference, and start on a new 2.5 second period.
 We hold 4 samples of the estimated noise floor amplitude, one from each of the aforementioned periods. This includes the current estimate.
-
 To estimate the overall noise floor, we select from each bin the minimum amplitude from each of the saved periods.
 We then subtract the amplitude of the noise floor spectrum from the amplitude of the input spectrum. This then becomes the de-noised output of our initial implementation.
-
 In order to continue the process, at each 2.5 second period we shift the noise floor examples in our buffers, deleting the last one to maintain exactly 4 samples of the noise floor amplitude. The code that achieves this can be seen in Appendix~\ref{app:simple}. It uses pointers to arrays to do efficient rotations of all bins simultaneously.
 
-The implementation has two tuning parameters, Alpha and Lambda. Alpha controls the amplification factor that is applied to the model noise floor before subtraction, very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
-Lambda is the value setting the minimum value that the noise floor is allowed to take, as on a occasion the noise floor could be considered negative (and hence we would actually add more noise upon subtraction), this should be kept low, in fact we found that a value of 0 works the best, this just ensures that the noise floor cannot be considered negative though all positive values will pass through unchanged.  
+The implementation has two tuning parameters, \verb"alpha" and \verb"lambda". \verb"alpha" controls the amplification factor that is applied to the model noise floor before subtraction: very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
+\verb"lambda" is the value setting the minimum value that the noise floor is allowed to take, as on a occasion the noise floor could be considered negative (and hence we would actually add more noise upon subtraction). This should be kept low, in fact we found that a value of 0 works the best. In this case, it ensures that the noise floor cannot be considered negativem, and all positive values will pass through unchanged.
+
 
 \section{Low pass filtering $\lvert X(\omega) \rvert $} 
 \label{sec:IIRamp}
@@ -149,7 +148,7 @@ for (k = 0; k < FFTLEN; ++k) {
 	\label{code:LPFxOMG}
 \end{figure}
 
-This enhancement tries to combat the inaccuracies of taking the minimum value of each bin to represent the noise floor. This problem manifests because often the minimum for each bin is not representative of the actual noise floor, hence the need for large alpha values at times. By using a low pass filter, one off low values in a particular bin are given less influence on the current noise floor model, and they will need to remain low for a number of windows to suggest that that particular bin is indeed required to be lower to be representative of the noise floor. This filtering is applied directly to the FFT of the input and there for the current method of finding the minimum value for each bin can be maintained. The low pass filtering code segment is shown in Figure~\ref{code:LPFxOMG}.  Line number \verb"5" performs the IIR filter within the for loop that is incrementing \verb"k", the loop is also performing other operations not relevant to the IIR filtering. 
+This enhancement tries to combat the inaccuracies of taking the minimum value of each bin to represent the noise floor. This problem manifests because often the minimum for each bin is not representative of the actual noise floor, hence the need for large alpha values at times. By using a low pass filter, one off low values in a particular bin are given less influence on the current noise floor model, and they will need to remain low for a number of windows to suggest that that particular bin is indeed required to be lower to be representative of the noise floor. This filtering is applied directly to the FFT of the input and there for the current method of finding the minimum value for each bin can be maintained. The low pass filtering code segment is shown in Figure~\ref{code:LPFxOMG}. Line number \verb"5" performs the IIR filter within the for loop that is incrementing \verb"k", the loop is also performing other operations not relevant to the IIR filtering. 
 
 The effect of this enhancement is very noticeable, the words are less corrupted by the subtraction of the noise, due the fact that our estimation of the noise is much more representative of the actual noise floor.   
 \section{Filtering Using Spectral Power} 
