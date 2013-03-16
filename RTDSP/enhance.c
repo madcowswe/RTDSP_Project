@@ -58,17 +58,18 @@
 #define PI 3.141592653589793
 #define TFRAME (FRAMEINC/FSAMP)       /* time between calculation of each frame */
 
-#define TMrotate 2.5
+#define TMrotate 1
 #define MrotateFramecount ((int)(TMrotate/TFRAME))
 
-#define ALPHA 8
+#define ALPHA 6
 #define LAMBDA 0.00
 #define TauOP1 0.04
 
 float alpha = ALPHA;
 float lambda = LAMBDA;
 float kop1 = 0.85; //init in init = exp(-TFRAME/TauOP1);
-float nonlinclip = 0.03;
+float nonlinclip = 0.1;
+float postgain = 10;
 
 
 #define max(a,b) \
@@ -307,10 +308,10 @@ void process_frame(void)
 
  	for (k = 0; k < FFTLEN; ++k)
  	{
- 		float powratiomin = max(max(powratiobuffs[0][k], powratiobuffs[1][k]), powratiobuffs[2][k]); //NSR!!!
+ 		float powratiomin = min(powratiobuffs[0][k], powratiobuffs[2][k]);//, powratiobuffs[1][k]); //NSR!!!
 
  		float g = (powratiomin > (nonlinclip * allbinpower)) ? 0 : max(lambda, 1-sqrt(powratiobuffs[1][k]));
- 		procframe[k] = rmul(g, procframe[k]);
+ 		procframe[k] = rmul(g*postgain, procframe[k]);
  	}
  	
 	ifft(FFTLEN, procframe);
