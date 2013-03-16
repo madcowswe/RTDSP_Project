@@ -105,11 +105,20 @@ Talk about the high level conclusions of the project including the fact our stuf
 
 
 \section{Introduction} 
-In this project we aim to produce a real time filtering algorithm that will remove a variety noise sources from a sample recording. The filtering operation needs to be effective on all noise sources without noise specific modifications. The basic form for all these filters will be to find the background noise signature then to subtract that from the recording, this is known as \emph{Spectral Subtraction}. 
+In this project we aim to produce a real-time filtering algorithm that will remove a variety noise sources from a sample recording. The filtering operation needs to be effective on all noise sources without sample-specific modifications.
+The basic form for all these filters will be to find the background noise signature then to subtract that from the recording, which is known as \emph{Spectral Subtraction}. 
 
 \section{Simple Implementation of Spectral Subtraction} 
 \label{sec:simple}
-In this implementation we track the noise in the sample by taking the minimum amplitude of each bin of FFT. We continually update this during a 2.5s period, after this we save this into an array for future reference, and be start on a new period of 2.5s. We hold 4 examples of the noise floor (including the current one). For each bin we select the minimum value from each of these examples to make the current noise floor, then we subtract the spectrum from the input spectrum. After each 2.5 second period we shift the noise floor examples along, deleting the last one to maintain exactly 4 examples of the noise floor. The code that achieves this can be seen in Appendix~\ref{app:simple}. This implementation has two tuning parameters, Alpha and Lambda. Alpha controls the amplification factor that is applied to the model noise floor before subtraction, very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
+In this implementation we track the noise floor in the sample by finding the minimum amplitude of each bin of an FFT. We continually update this estimate during a 2.5s period, after which we save it into an array for future reference, and start on a new 2.5 second period.
+We hold 4 samples of the estimated noise floor amplitude, one from each of the aforementioned periods. This includes the current estimate.
+
+To estimate the overall noise floor, we select from each bin the minimum amplitude from each of the saved periods.
+We then subtract the amplitude of the noise floor spectrum from the amplitude of the input spectrum. This then becomes the de-noised output of our initial implementation.
+
+In order to continue the process, at each 2.5 second period we shift the noise floor examples in our buffers, deleting the last one to maintain exactly 4 samples of the noise floor amplitude. The code that achieves this can be seen in Appendix~\ref{app:simple}. It uses pointers to arrays to do efficient rotations of all bins simultaneously.
+
+The implementation has two tuning parameters, Alpha and Lambda. Alpha controls the amplification factor that is applied to the model noise floor before subtraction, very low values give insufficient noise attenuation, very high values start to distort the speech making it sound somewhat like the speaker is underwater. A value of between 2 and 10 makes for the most audible speech, varying depending on the source of noise present. 
 Lambda is the value setting the minimum value that the noise floor is allowed to take, as on a occasion the noise floor could be considered negative (and hence we would actually add more noise upon subtraction), this should be kept low, in fact we found that a value of 0 works the best, this just ensures that the noise floor cannot be considered negative though all positive values will pass through unchanged.  
 
 \section{Low pass filtering $\lvert X(\omega) \rvert $} 
@@ -117,27 +126,26 @@ Lambda is the value setting the minimum value that the noise floor is allowed to
 \begin{figure}[htbp]
 	\begin{center}
     \begin{lstlisting}[language = C]
-for (k = 0; k < FFTLEN; ++k)
-	{
-		float curramp = cabs(procframe[k]); 
+for (k = 0; k < FFTLEN; ++k) {
+	float curramp = cabs(procframe[k]); 
 
-		curramp = (1-kop1)*curramp + kop1*ampbinstate[k];
-		ampbinstate[k] = curramp;
+	curramp = (1-kop1)*curramp + kop1*ampbinstate[k];
+	ampbinstate[k] = curramp;
 
-		float currnoisebin = clearM ? curramp : min(Mbuffs[0][k], curramp);
-		Mbuffs[0][k] = currnoisebin;
+	float currnoisebin = clearM ? curramp : min(Mbuffs[0][k], curramp);
+	Mbuffs[0][k] = currnoisebin;
 
-		for (i = 1; i < NumMbuff; ++i)
-			currnoisebin = min(currnoisebin, Mbuffs[i][k]);
+	for (i = 1; i < NumMbuff; ++i)
+		currnoisebin = min(currnoisebin, Mbuffs[i][k]);
 
-		currnoisebin *= alpha;
+	currnoisebin *= alpha;
 
-		float g = max(lambda, 1-(currnoisebin/curramp));
-		procframe[k] = rmul(g, procframe[k]);
-	}
+	float g = max(lambda, 1-(currnoisebin/curramp));
+	procframe[k] = rmul(g, procframe[k]);
+}
     \end{lstlisting}
   \end{center}
-	\caption{Code segment showing the implementation of low pass filtering the FFT of the input}
+	\caption{Code segment showing the implementation of low pass filtering the FFT of the input. kop1 is the scaling factor that places the pole of the low pass filter.}
 	\label{code:LPFxOMG}
 \end{figure}
 
@@ -164,7 +172,7 @@ This aided the performance of our system, though once again the affect was margi
 
 \section{Zeroing Bins That Fall Bellow Threshold SNR} 
 
-In this enhancement we wished to remove the small chirping noises that are left over in from the previous enhancements. Generally the chirping is much quieter that the speech after the techniques discussed previously, so we implemented a simple routine that drives bins that have insufficient amplitude, which has been defined by a threshold. 
+In this enhancement we wished to remove the small chirping noises that are left over in from the previous enhancements. Generally the chirping is much quieter that the speech after the techniques discussed previously, so we implemented a simple routine that drives the bins, which have insufficient estimated SNR, to zero.
 
 This has the effect of making the sections with no speech completely silent, so long as there is no musical noise. This is because after previous filtering, all bins fall below our threshold and can be removed completely. Musical noise still gets through this filter in general as it has not been suppressed sufficiently from the previous stages of enhancement. Furthermore, noise that is present during speech is not affected much, as the large amplitude signal adds to the noise and as such the noise can be carried through the threshold check. 
 
@@ -183,87 +191,92 @@ This is the standard implementation as described in Section~\ref{sec:simple}. No
     \begin{lstlisting}[language = C]
 fft(FFTLEN, procframe);
 									
-    static int MRotate_ctr = 0;
+static int MRotate_ctr = 0;
 
-	if (MRotate_ctr == MrotateFramecount){
+if (MRotate_ctr == MrotateFramecount){
 
-		MRotate_ctr = 0;
+	MRotate_ctr = 0;
 
-		//rotate Mbuffs
-		float* rottemp = Mbuffs[NumMbuff-1];
-		for (i = NumMbuff-1; i != 0; --i)
-			Mbuffs[i] = Mbuffs[i-1];
-		Mbuffs[0] = rottemp;
+	//rotate Mbuffs
+	float* rottemp = Mbuffs[NumMbuff-1];
+	for (i = NumMbuff-1; i != 0; --i)
+		Mbuffs[i] = Mbuffs[i-1];
+	Mbuffs[0] = rottemp;
 
-		//Init new mbuff
-		clearM = 1;
-	} else {
-		MRotate_ctr++;
-		clearM = 0;
-	}
+	//Init new mbuff
+	clearM = 1;
+} else {
+	MRotate_ctr++;
+	clearM = 0;
+}
 
-	for (k = 0; k < FFTLEN; ++k)
-	{
-		float curramp = cabs(procframe[k]); 
-		float currnoisebin = Mbuffs[0][k] = clearM ? curramp : min(Mbuffs[0][k], curramp);
-		for (i = 1; i < NumMbuff; ++i)
-			currnoisebin = min(currnoisebin, Mbuffs[i][k]);
+for (k = 0; k < FFTLEN; ++k)
+{
+	float curramp = cabs(procframe[k]); 
+	float currnoisebin = Mbuffs[0][k] = clearM ? curramp : min(Mbuffs[0][k], curramp);
+	for (i = 1; i < NumMbuff; ++i)
+		currnoisebin = min(currnoisebin, Mbuffs[i][k]);
 
-		currnoisebin *= alpha;
+	currnoisebin *= alpha;
 
-		float g = max(lambda, 1-(currnoisebin/curramp));
-		procframe[k] = rmul(g, procframe[k]);
-	}
+	float g = max(lambda, 1-(currnoisebin/curramp));
+	procframe[k] = rmul(g, procframe[k]);
+}
 
-	
-	ifft(FFTLEN, procframe);
+ifft(FFTLEN, procframe);
 
-
-fft(FFTLEN, procframe);
-									
-    static int MRotate_ctr = 0;
-
-	if (MRotate_ctr == MrotateFramecount){
-
-		MRotate_ctr = 0;
-
-		//rotate Mbuffs
-		float* rottemp = Mbuffs[NumMbuff-1];
-		for (i = NumMbuff-1; i != 0; --i)
-			Mbuffs[i] = Mbuffs[i-1];
-		Mbuffs[0] = rottemp;
-
-		//Init new mbuff
-		clearM = 1;
-	} else {
-		MRotate_ctr++;
-		clearM = 0;
-	}
-
-	for (k = 0; k < FFTLEN; ++k)
-	{
-		float curramp = cabs(procframe[k]); 
-
-		//LPF curramp
-		curramp = (1-kop1)*curramp + kop1*ampbinstate[k];
-		ampbinstate[k] = curramp;
-
-		float currnoisebin = clearM ? curramp : min(Mbuffs[0][k], curramp);
-		Mbuffs[0][k] = currnoisebin;
-
-		for (i = 1; i < NumMbuff; ++i)
-			currnoisebin = min(currnoisebin, Mbuffs[i][k]);
-
-		currnoisebin *= alpha;
-
-		float g = max(lambda, 1-(currnoisebin/curramp));
-		procframe[k] = rmul(g, procframe[k]);
-	}
-
-	
-	ifft(FFTLEN, procframe);
     \end{lstlisting}
   \end{center}
+
+ \subsection{Implementation using Low Pass Filtered minimum amplitude} % (fold)
+ \label{sub:implementation_using_low_pass_filtered_minimum_amplitude}
+ \begin{center}
+ 	\begin{lstlisting}[language = C]
+fft(FFTLEN, procframe);
+									
+static int MRotate_ctr = 0;
+
+if (MRotate_ctr == MrotateFramecount){
+
+	MRotate_ctr = 0;
+
+	//rotate Mbuffs
+	float* rottemp = Mbuffs[NumMbuff-1];
+	for (i = NumMbuff-1; i != 0; --i)
+		Mbuffs[i] = Mbuffs[i-1];
+	Mbuffs[0] = rottemp;
+
+	//Init new mbuff
+	clearM = 1;
+} else {
+	MRotate_ctr++;
+	clearM = 0;
+}
+
+for (k = 0; k < FFTLEN; ++k)
+{
+	float curramp = cabs(procframe[k]); 
+
+	//LPF curramp
+	curramp = (1-kop1)*curramp + kop1*ampbinstate[k];
+	ampbinstate[k] = curramp;
+
+	float currnoisebin = clearM ? curramp : min(Mbuffs[0][k], curramp);
+	Mbuffs[0][k] = currnoisebin;
+
+	for (i = 1; i < NumMbuff; ++i)
+		currnoisebin = min(currnoisebin, Mbuffs[i][k]);
+
+	currnoisebin *= alpha;
+
+	float g = max(lambda, 1-(currnoisebin/curramp));
+	procframe[k] = rmul(g, procframe[k]);
+}
+
+ifft(FFTLEN, procframe);
+ 	\end{lstlisting}
+ \end{center}
+ % subsection implementation_using_low_pass_filtered_minimum_amplitude (end)
 
 \subsection{Notes} % (fold)
 \label{sec:notes}
