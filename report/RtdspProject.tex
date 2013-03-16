@@ -97,7 +97,7 @@
 \center{\textbf{\large{\emph{"...a profound trust in the advancement of science."}	}}}
 
 \abstract{
-Talk about the high level conclusions of the project including the fact our stuff is super quick and any numeric metrics that show noise reduction. }
+Noise reduction from audio is of great importance, especially when applied to telecommunications. What this project aims to do is demonstrate some of the techniques that are available to reduce a multitude of noise sources from a vocal recording. Using a number of techniques in series such as background subtraction and small bin zeroing ended up providing excellent results; reducing the noise drastically with all characters of noise. 
 \tableofcontents
 \clearpage
 
@@ -159,7 +159,7 @@ This enhancement is very similar to that presented in Section~\ref{sec:IIRamp} t
 In reality this enhancement added little to the sound quality of the output, bordering on inaudible changes. Though the method of filtering in the power domain will be used to great effect later in the string of enhancements.  
 
 \subsection{Generating $g(\omega)$ Using Ratios of Power} 
-
+\label{sec:powerrat}
 \begin{equation}
 \label{equ:powerRat}
 	g(\omega) = \max\left(\lambda, \sqrt{1- \frac{\lvert N(\omega) \rvert ^{2}}{\lvert X(\omega) \rvert ^{2}}}\right)
@@ -169,6 +169,20 @@ This enhancement generates $g(\omega)$ using the ration of power rather than of 
 
 This aided the performance of our system, though once again the affect was marginal. The strange sounds that were present in the low frequencies (especially in the car sample) where somewhat reduced, though the actual clarity of the speech was not affected greatly.
 
+\subsection{Generating $g(\omega)$ Using Ratios of Low pass filtered power} 
+\label{sec:powerratLPF}
+\begin{equation}
+\label{equ:powerRatLPF}
+	g(\omega) = \max\left(\lambda, \sqrt{1- \frac{\lvert N(\omega) \rvert ^{2}}{\lvert P(\omega) \rvert ^{2}}}\right)
+\end{equation}
+
+We attempted to use the equation listed in Equation~\ref{equ:powerRatLPF}. This is the same as in Section~\ref{sec:powerrat} but using the low pass filtered version of the input spectrum to generate the power spectrum.This was quite successful at removing musical noise in the factory sample, though introduced significant reverberation. This is due to the shaping filter ($g(\omega)$) changing as a result of the current data, this causes feed back in the system. We try to remedy this problem in Section~\ref{sec:delayprepipe}.
+
+\subsection{Low pass filtered power with look-ahead}
+\label{sec:delayprepipe}
+
+We tried to add a single stage buffer for the input, where the data that is now old by one frame period is shaped by the information contained in the newest frame period. This was in an attempt to break the feedback that was causing reverberation in Section~\ref{sec:powerratLPF}, as now the filter shape depends on the next frame rather than the current frame, there is no feedback loop. The success of this implementation was limited, there was slightly reduced reverberation, but the overall improvement was not significant. The code for this section is listed in Appendix~\ref{app:delayprepipe}.
+
 \section{Zeroing Bins That Fall Bellow Threshold SNR} 
 
 In this enhancement we wished to remove the small chirping noises that are left over in from the previous enhancements. Generally the chirping is much quieter that the speech after the techniques discussed previously, so we implemented a simple routine that drives the bins, which have insufficient estimated SNR, to zero.
@@ -177,6 +191,10 @@ This has the effect of making the sections with no speech completely silent, so 
 
 A further improvement to this enhancement was to weight the threshold by the low pass filtered noise power (over all frequencies), such that when there is a large amount of noise the cut will be less aggressive. This is needed because when the noise is loud it is comparable to the signal, so if we cut just above the noise floor, we also cut some of the signal, this makes the speech harder to understand. It is in-fact better to leave a little bit of noise in this situation. When the noise power is low we can assume that the signal will dominate over the noise, and any bins that fall close to the noise floor can be removed without affecting the voice quality.  
 
+\section{Musical Noise Reduction} 
+After all of the techniques described in the previous sections, we have produced an algorithm that removes the noise floor very well; with the lower noise samples distinguishing the output from the clean sample is difficult. Musical noise on the other hand is still a significant issue with these methods, as they are not using information stored within the time varying nature of the signal. Hence all noise that has a short transient nature is let through the filter, and corrupts the output. To solve this problem we must look at the time varying properties of the signal. These small transient noises have a much shorter duration than syllables in speech, therefore our approach is to check the power of the future window (similar to the look-ahead in Section~\ref{sec:delayprepipe}) and store the power of the previous window, if neither the past window or the future window has sufficient power, the current window is considered noise and is removed. This serves to remove any frames that are isolated; frames that are adjacent to others that are considered speech are kept. 
+
+This technique is difficult to judge as it does seemingly reduce some of the shorter noise artefacts, though the longer ones are left in. Furthermore this possess degrades the clarity of the speech at the very beginning and at the very end of words. By balancing the threshold that we check the past and future windows against carefully, we believe there is a small but noticeable improvement in musical noise without overly distracting damage to the speech signal.  
 
 \clearpage
 
@@ -273,6 +291,44 @@ for (k = 0; k < FFTLEN; ++k)
 }
 
 ifft(FFTLEN, procframe);
+ 	\end{lstlisting}
+ \end{center}
+
+
+
+  \subsection{Look Ahead, Low Pass Filtered Power} % (fold)
+ \label{app:delayprepipe}
+ \begin{center}
+ 	\begin{lstlisting}[language = C]
+	for (k = 0; k < FFTLEN; ++k)
+	{
+		float curramp = cabs(procframe[k]);
+		float currpow = curramp * curramp;
+
+		//LPF currpow
+		currpow = (1-kop1)*currpow + kop1*powbinstate[k];
+		powbinstate[k] = currpow;
+
+		float currnoisebin = clearM ? currpow : min(Mbuffs[0][k], currpow);
+		Mbuffs[0][k] = currnoisebin;
+
+		for (i = 1; i < NumMbuff; ++i)
+			currnoisebin = min(currnoisebin, Mbuffs[i][k]);
+
+		currnoisebin *= alpha;
+		
+		lastallbinpower += currnoisebin;
+		
+		float powratio = currnoisebin/currpow;//(curramp*curramp);
+		float g = (powratio > (nonlinclip * (allbinpower/**allbinpower*/))) ? 0 : max(lambda, 1-sqrt(powratio));
+		procframeprepipe[k] = rmul(g, procframeprepipe[k]);
+	}
+
+	complex* tempframe = procframeprepipe;
+	procframeprepipe = procframe;
+ 	procframe = tempframe;
+	
+	ifft(FFTLEN, procframe);
  	\end{lstlisting}
  \end{center}
  % subsection implementation_using_low_pass_filtered_minimum_amplitude (end)
