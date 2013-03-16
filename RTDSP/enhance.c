@@ -61,14 +61,14 @@
 #define TMrotate 2.5
 #define MrotateFramecount ((int)(TMrotate/TFRAME))
 
-#define ALPHA 5
+#define ALPHA 8
 #define LAMBDA 0.00
 #define TauOP1 0.04
 
 float alpha = ALPHA;
 float lambda = LAMBDA;
 float kop1 = 0.85; //init in init = exp(-TFRAME/TauOP1);
-float nonlinclip = 0.05;
+float nonlinclip = 0.03;
 
 
 #define max(a,b) \
@@ -110,6 +110,7 @@ float *inbuffer, *outbuffer;   		/* Input/output circular buffers */
 float *inwin, *outwin;              /* Input and output windows */
 float* powbinstate;
 complex* procframe;
+complex* procframeprepipe;
 float ingain, outgain;				/* ADC and DAC gains */
 float cpufrac; 						/* Fraction of CPU time used */
 float* Mbuffs[NumMbuff];
@@ -135,6 +136,7 @@ void main()
 	//inframe		= (float *) calloc(FFTLEN, sizeof(float));	/* Array for processing*/
     //outframe	= (float *) calloc(FFTLEN, sizeof(float));	/* Array for processing*/
     //int(*Mbuff)[FFTLEN] = malloc((sizeof *Mbuff) * NumMbuff);
+    procframeprepipe = (complex *) calloc(FFTLEN, sizeof(complex));
     powbinstate	= (float *) calloc(FFTLEN, sizeof(float));
     procframe	= (complex *) calloc(FFTLEN, sizeof(complex));
     inwin		= (float *) calloc(FFTLEN, sizeof(float));	/* Input window */
@@ -242,9 +244,8 @@ void process_frame(void)
 	ouptut with no processing */
 
 	
-							      	
 	fft(FFTLEN, procframe);
-									
+				
     static int MRotate_ctr = 0;
 
 	if (MRotate_ctr == MrotateFramecount){
@@ -292,7 +293,10 @@ void process_frame(void)
 		procframe[k] = rmul(g, procframe[k]);
 	}
 
-	
+	//complex* tempframe = procframeprepipe;
+	//procframeprepipe = procframe;
+ 	//procframe = tempframe;
+ 	
 	ifft(FFTLEN, procframe);
 	
 	/********************************************************************************/
