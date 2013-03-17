@@ -219,9 +219,12 @@ The main downsides of this technique are increased memory requirements and an in
 \subsection{Voice profiling}
 Due to the nature of the samples all containing the same signal, we could profile all of the frequencies that are (significantly) present, then used multiple bandpass filters to allow only these bands through for continued processing. One could suggest that this would not be in the spirit of real time signal extraction, because we would be filtering the input data based of pre-prepared knowledge of the signal. In fact the demonstration paragraph that forms the signal is designed specifically to represent the majority of vocal patterns that are present in normal speech, and as such a frequency spectrum of the signal is representative of all speech. Naturally this filter will be more effective with a medium toned male voice than any other, but could be generalised by taking the union of a number of representative voice samples. 
 
-A filter such as this would remove very high and very low frequencies before any of the other techniques are applied, as the human voice has the majority of its energy in the 300Hz to 1kHz region, though it would not exclude small portions in the higher register responsible for "s" and "t" sounds, thus making the output more intelligible than using just a simple band pass filter. 
+A filter such as this would remove very high and very low frequencies before any of the other techniques are applied, as the human voice has the majority of its energy in the 300Hz to 1kHz region, though it would not exclude small portions in the higher register responsible for "s" and "t" sounds, thus making the output more intelligible than using just a simple band pass filter.
 
-\section{Conclusion} 
+\section{Conclusion}
+
+This project has exercised some interesting techniques to perform noise removal using spectral subtraction. Several improvements to the naive method have been implemented. These include various ways of tracking the noise and signal powers and shaping the output filter accordingly. Further, we have developed a feature which will completely remove components with insufficient SNR, rendering a completely clean signals when the input SNR is sufficient. In addition, we have implemented a heuristic which takes into consideration the temporal characteristics of speech, in an attempt to eliminate short bursts of noise. Finally, we discuss some improvements to the aforementioned heuristic, and discuss the potential use of voice profiling.
+
 \clearpage
 
 \section{APPENDIX}
@@ -270,6 +273,8 @@ ifft(FFTLEN, procframe);
 
     \end{lstlisting}
   \end{center}
+
+\clearpage
 
  \subsection{Implementation using Low Pass Filtered minimum amplitude} % (fold)
  \label{sub:implementation_using_low_pass_filtered_minimum_amplitude}
@@ -320,7 +325,7 @@ ifft(FFTLEN, procframe);
  	\end{lstlisting}
  \end{center}
 
-
+\clearpage
 
   \subsection{Look Ahead, Low Pass Filtered Power} % (fold)
  \label{app:delayprepipe}
@@ -367,7 +372,7 @@ ifft(FFTLEN, procframe);
 	\item Nonlinear clipping: inspiration = skype: see if skype has some papers on it?
 	\item Do voice vs not voice spectral regions/singature and shape a filter for voice frequencies.
 	\item If time > something large: do eigenvoices (perhaps talk about them anyway)
-	\item 
+	\item Matlab up some figs of "hey look it is quit when he is not speaking"
 
 \end{itemize}
 % section notes (end)
