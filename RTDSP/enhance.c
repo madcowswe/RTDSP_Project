@@ -68,8 +68,8 @@
 float alpha = ALPHA;
 float lambda = LAMBDA;
 float kop1 = 0.85; //init in init = exp(-TFRAME/TauOP1);
-float nonlinclip = 0.1;
-float postgain = 10;
+float nonlinclip = 0.75;
+float postgain = 1;
 
 
 #define max(a,b) \
@@ -274,8 +274,11 @@ void process_frame(void)
 	powratiobuffs[1] = powratiobuffs[0];
 
 	static float lastallbinpower = 0;
+	static float lastallbinsigpower = 0;
 	float allbinpower = lastallbinpower;
+	float allbinsigpower = lastallbinsigpower;
 	lastallbinpower = 0;
+	lastallbinsigpower = 0;
 
 	for (k = 0; k < FFTLEN; ++k)
 	{
@@ -295,6 +298,7 @@ void process_frame(void)
 		currnoisebin *= alpha;
 		
 		lastallbinpower += currnoisebin;
+		lastallbinsigpower += currpow;
 		
 		powratiobuffs[0][k] = currnoisebin/(curramp*curramp);
 		//float g = (powratio > (nonlinclip * (allbinpower/**allbinpower*/))) ? 0 : max(lambda, 1-sqrt(powratio));
@@ -310,7 +314,7 @@ void process_frame(void)
  	{
  		float powratiomin = min(powratiobuffs[0][k], powratiobuffs[2][k]);//, powratiobuffs[1][k]); //NSR!!!
 
- 		float g = (powratiomin > (nonlinclip * allbinpower)) ? 0 : max(lambda, 1-sqrt(powratiobuffs[1][k]));
+ 		float g = (powratiomin > (nonlinclip * (allbinpower/allbinsigpower))) ? 0 : max(lambda, 1-sqrt(powratiobuffs[1][k]));
  		procframe[k] = rmul(g*postgain, procframe[k]);
  	}
  	
