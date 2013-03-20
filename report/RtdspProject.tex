@@ -30,15 +30,14 @@
 \usepackage{booktabs} % for much better looking tables
 \usepackage{array} % for better arrays (eg matrices) in maths
 \usepackage{paralist} % very flexible & customisable lists (eg. enumerate/itemize, etc.)
-\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
-%\usepackage{subfig} % make it possible to include more than one captioned figure/table in a single float
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better v\usepackage{subfigure} % make it possible to include more than one captioned figure/table in a single float
 % These packages are all incorporated in the memoir class to one degree or another...
-
+\usepackage{subfigure}
 \usepackage{caption}
-\usepackage{subcaption}
+%\usepackage{subcaption}
 
-\DeclareCaptionFormat{subfig}{\figurename~#1#2#3}
-\DeclareCaptionSubType*{figure}
+%\DeclareCaptionFormat{subfig}{\figurename~#1#2#3}
+%\DeclareCaptionSubType*{figure}
 \captionsetup[subfigure]{format=subfig,labelsep=colon,labelformat=simple}
 
 
@@ -94,14 +93,14 @@
 
 \begin{document}
 \maketitle
-\center{\textbf{\large{\emph{"...a profound trust in the advancement of science."}	}}}
+\center{\textbf{\large{\emph{"...a profound trust in the advances of science."}	}}}
 
 \abstract{
-Noise reduction from audio is of great importance, especially when applied to telecommunications. What this project aims to do is demonstrate some of the techniques that are available to reduce a multitude of noise sources from a vocal recording. Using a number of techniques in series such as background subtraction and small bin zeroing ended up providing excellent results; reducing the noise drastically with all characters of noise. 
+Noise reduction from audio is of great importance, especially when applied to telecommunications.
+What this project aims to do is demonstrate some of the techniques that are available to reduce the noise from a multitude of sources.
+We use a number of techniques in series, such as background subtraction and a non-linear method based on SRN thresholding, producing excellent results; reducing the noise drastically in all situations.
 \tableofcontents
 \clearpage
-
-
 
 
 \section{Introduction} 
@@ -155,7 +154,7 @@ The effect of this enhancement is very noticeable, the words are less corrupted 
 \section{Filtering Using Spectral Power} 
 \subsection{Low pass filtering $\lvert X(\omega) \rvert^{2} $} 
 
-This enhancement is very similar to that presented in Section~\ref{sec:IIRamp} though instead of using the amplitude, then IIR filtering it, we IIR filter the power spectrum instead, this is a benefit as it makes a larger difference between quieter background noise, and the louder signal we are trying to extract. This should enhance our ability to extract the noise floor. 
+This enhancement is very similar to that presented in Section~\ref{sec:LPF} though instead of using the amplitude, then IIR filtering it, we IIR filter the power spectrum instead, this is a benefit as it makes a larger difference between quieter background noise, and the louder signal we are trying to extract. This should enhance our ability to extract the noise floor. 
 
 In reality this enhancement added little to the sound quality of the output, bordering on inaudible changes. Though the method of filtering in the power domain will be used to great effect later in the string of enhancements.  
 
@@ -206,6 +205,34 @@ To solve this problem we must look at the time varying properties of the signal.
 It is difficult to judge the effectiveness of this approach, as it does seemingly reduce some of the shorter noise artefacts, while the longer ones are left in. 
 Furthermore this process degrades the clarity of the speech at the very beginning and at the very end of words. By carefully balancing the threshold that we check the past and future frames against, we believe there is a small but noticeable improvement in musical noise without damaging to the speech signal. 
 
+\clearpage
+
+\section{Analysis Of Our final Algorithm} 
+Our final algorithm implements all off the above to great effect, noise is greatly reduced and the voice remains clearly audible. In the time domain it is easy to see the lack of noise in between speech, see Figure~\ref{fig:timecomparison}, when the voice is not present the signal is locked to zero. 
+
+Looking at the frequency domain also gives insight to the extent to which our algorithm removes noise. Figure~\ref{fig:freqcomparison} shows a comparison of the Lynx1 sample before and after processing. Before processing the helicopters spectral signature is clear, thick parallel lines running through the spectrogram; after processing these are completely gone, leaving only the voices spectral information. The difference in scale on the figures is due to the fact that the microphone input samples the output of the DSK board at a higher frequency than the original recording, also the gain of the microphone input was too high leading to some clipping on the output recording; this can be ignored as these figures are for qualitative reference.    
+
+\begin{figure}
+\centering     %%% not \center
+\subfigure[Before processing]{\label{fig:noisytime}\includegraphics[width=60mm]{noisytime}}
+\subfigure[After processing]{\label{fig:cleantime}\includegraphics[width=60mm]{cleantime}}
+\caption{Time domain comparison of our algorithm}
+\label{fig:timecomparison}
+\end{figure}
+
+\begin{figure}
+\centering     %%% not \center
+\subfigure[Before processing]{\label{fig:noisyfreq}\includegraphics[width=60mm]{noisyfreq}}
+\subfigure[After processing]{\label{fig:cleanfreq}\includegraphics[width=60mm]{cleanfreq}}
+\caption{Frequency domain comparison of our algorithm}
+\label{fig:freqcomparison}
+\end{figure}
+
+
+
+
+
+
 \section{Potential Future Improvements} 
 
 Due to time being limited we could not implement everything that we would like. Though we include here some brief discussions of enhancements that we could have implemented. 
@@ -219,9 +246,12 @@ The main downsides of this technique are increased memory requirements and an in
 \subsection{Voice profiling}
 Due to the nature of the samples all containing the same signal, we could profile all of the frequencies that are (significantly) present, then used multiple bandpass filters to allow only these bands through for continued processing. One could suggest that this would not be in the spirit of real time signal extraction, because we would be filtering the input data based of pre-prepared knowledge of the signal. In fact the demonstration paragraph that forms the signal is designed specifically to represent the majority of vocal patterns that are present in normal speech, and as such a frequency spectrum of the signal is representative of all speech. Naturally this filter will be more effective with a medium toned male voice than any other, but could be generalised by taking the union of a number of representative voice samples. 
 
-A filter such as this would remove very high and very low frequencies before any of the other techniques are applied, as the human voice has the majority of its energy in the 300Hz to 1kHz region, though it would not exclude small portions in the higher register responsible for "s" and "t" sounds, thus making the output more intelligible than using just a simple band pass filter. 
+A filter such as this would remove very high and very low frequencies before any of the other techniques are applied, as the human voice has the majority of its energy in the 300Hz to 1kHz region, though it would not exclude small portions in the higher register responsible for "s" and "t" sounds, thus making the output more intelligible than using just a simple band pass filter.
 
-\section{Conclusion} 
+\section{Conclusion}
+
+This project has exercised some interesting techniques to perform noise removal using spectral subtraction. Several improvements to the naive method have been implemented. These include various ways of tracking the noise and signal powers and shaping the output filter accordingly. Further, we have developed a feature which will completely remove components with insufficient SNR, rendering a completely clean signals when the input SNR is sufficient. In addition, we have implemented a heuristic which takes into consideration the temporal characteristics of speech, in an attempt to eliminate short bursts of noise. Finally, we discuss some improvements to the aforementioned heuristic, and discuss the potential use of voice profiling.
+
 \clearpage
 
 \section{APPENDIX}
@@ -270,6 +300,8 @@ ifft(FFTLEN, procframe);
 
     \end{lstlisting}
   \end{center}
+
+\clearpage
 
  \subsection{Implementation using Low Pass Filtered minimum amplitude} % (fold)
  \label{sub:implementation_using_low_pass_filtered_minimum_amplitude}
@@ -320,7 +352,7 @@ ifft(FFTLEN, procframe);
  	\end{lstlisting}
  \end{center}
 
-
+\clearpage
 
   \subsection{Look Ahead, Low Pass Filtered Power} % (fold)
  \label{app:delayprepipe}
@@ -359,17 +391,17 @@ ifft(FFTLEN, procframe);
  \end{center}
  % subsection implementation_using_low_pass_filtered_minimum_amplitude (end)
 
-\subsection{Notes} % (fold)
-\label{sec:notes}
-\begin{itemize}
-	\item We tried matlab, and we did slightly better (in our opinion, elaborate!)
-	\item Try to find some sort of research paper based method, becase of research paperness
-	\item Nonlinear clipping: inspiration = skype: see if skype has some papers on it?
-	\item Do voice vs not voice spectral regions/singature and shape a filter for voice frequencies.
-	\item If time > something large: do eigenvoices (perhaps talk about them anyway)
-	\item 
+% \subsection{Notes} % (fold)
+% \label{sec:notes}
+% \begin{itemize}
+% 	\item We tried matlab, and we did slightly better (in our opinion, elaborate!)
+% 	\item Try to find some sort of research paper based method, becase of research paperness
+% 	\item Nonlinear clipping: inspiration = skype: see if skype has some papers on it?
+% 	\item Do voice vs not voice spectral regions/singature and shape a filter for voice frequencies.
+% 	\item If time > something large: do eigenvoices (perhaps talk about them anyway)
+% 	\item Matlab up some figs of "hey look it is quit when he is not speaking"
 
-\end{itemize}
-% section notes (end)
+% \end{itemize}
+% % section notes (end)
 
 \end{document}
