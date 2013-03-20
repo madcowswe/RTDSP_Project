@@ -270,9 +270,11 @@ void process_frame(void)
 		clearM = 0;
 	}
 
+	//shift the power ratio buffers, used for musical noise supression
 	powratiobuffs[2] = powratiobuffs[1];
 	powratiobuffs[1] = powratiobuffs[0];
 
+	//Estimators of total SNR.
 	static float lastallbinpower = 0;
 	static float lastallbinsigpower = 0;
 	float allbinpower = lastallbinpower;
@@ -301,8 +303,6 @@ void process_frame(void)
 		lastallbinsigpower += currpow;
 		
 		powratiobuffs[0][k] = currnoisebin/(curramp*curramp);
-		//float g = (powratio > (nonlinclip * (allbinpower/**allbinpower*/))) ? 0 : max(lambda, 1-sqrt(powratio));
-		//procframe[k] = rmul(g, procframe[k]);
 	}
 
 	//swap new and old
@@ -310,6 +310,7 @@ void process_frame(void)
 	procframeprepipe = procframe;
  	procframe = tempframe;
 
+ 	//output last data based on a 3 frame window with 1 frame ahead. (enhancement 8)
  	for (k = 0; k < FFTLEN; ++k)
  	{
  		float powratiomin = min(powratiobuffs[0][k], powratiobuffs[2][k]);//, powratiobuffs[1][k]); //NSR!!!

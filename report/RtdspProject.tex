@@ -207,7 +207,7 @@ Furthermore this process degrades the clarity of the speech at the very beginnin
 
 \clearpage
 
-\section{Analysis Of Our final Algorithm} 
+\section{Analysis Of Our Final Algorithm} 
 Our final algorithm implements all off the above to great effect, noise is greatly reduced and the voice remains clearly audible. In the time domain it is easy to see the lack of noise in between speech, see Figure~\ref{fig:timecomparison}, when the voice is not present the signal is locked to zero. 
 
 Looking at the frequency domain also gives insight to the extent to which our algorithm removes noise. Figure~\ref{fig:freqcomparison} shows a comparison of the Lynx1 sample before and after processing. Before processing the helicopters spectral signature is clear, thick parallel lines running through the spectrogram; after processing these are completely gone, leaving only the voices spectral information. The difference in scale on the figures is due to the fact that the microphone input samples the output of the DSK board at a higher frequency than the original recording, also the gain of the microphone input was too high leading to some clipping on the output recording; this can be ignored as these figures are for qualitative reference.    
@@ -390,6 +390,15 @@ ifft(FFTLEN, procframe);
  	\end{lstlisting}
  \end{center}
  % subsection implementation_using_low_pass_filtered_minimum_amplitude (end)
+
+\clearpage
+
+\subsection{Complete Code Listing} % (fold)
+\label{sub:complete_code_listing}
+
+\lstinputlisting[language=C]{../RTDSP/enhance.c}
+
+% subsection complete_code_listing (end)
 
 % \subsection{Notes} % (fold)
 % \label{sec:notes}
